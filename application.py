@@ -16,6 +16,9 @@ class NewItemForm(FlaskForm):
     subcategory = SelectField("Subcategory", coerce=int)
     submit = SubmitField("Submit")
 
+class DeleteItemForm(FlaskForm):
+    submit = SubmitField('Delete Item')
+
 @app.route('/')
 def home():
     conn = get_db()
@@ -41,6 +44,68 @@ def home():
         }
         items.append(item)
     return render_template('home.html', items=items)
+
+@app.route('/item/<int:item_id>')
+def item(item_id):
+    c = get_db().cursor()
+    item_from_db = c.execute("""SELECT i.id, i.title, i.description, i.price, i.image, c.name, s.name
+                                FROM
+                                items AS i
+                                INNER JOIN categories AS c ON i.category_id = c.id
+                                INNER JOIN subcategories AS s on i.subcategory_id = s.id
+                                WHERE i.id = ?""",
+                                (item_id,)
+    )
+    row = c.fetchone()
+    try: 
+        item = {
+            "id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "price": row[3],
+            "image": row[4],
+            "category": row[5],
+            "subcategory": row[6]
+        }
+    except:
+        item = {}
+
+    if item:
+        deleteItemForm = DeleteItemForm()
+        return render_template('item.html', item=item, deleteItemForm=deleteItemForm)
+    else:
+        return redirect(url_for('home'))
+
+@app.route('/item/<int:item_id>/delete', methods=["POST"])
+def delete_item(item_id):
+    conn = get_db()
+    c = conn.cursor()
+    
+
+    item_from_db = c.execute("SELECT * FROM items WHERE id = ?", (item_id,))
+    row = c.fetchone()
+    try:
+        item = {
+            "id": row[0],
+            "title": row[1]
+        }
+    except:
+        item = {}
+
+    if item:
+        c.execute("DELETE FROM items WHERE id=?", (item_id,))
+        conn.commit()
+        flash("Item {} has been succesfully deleted.".format(item['title']))
+    else:
+        flash('This item does not exist', 'danger')
+
+    return redirect(url_for('home'))
+
+@app.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
+def edit_item(item_id):
+    return "Hello world!"
+
+
 
 @app.route('/item/new', methods=['GET', 'POST'])
 def new_item():
