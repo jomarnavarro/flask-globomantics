@@ -1,17 +1,28 @@
-from flask import Flask, render_template, request, redirect, url_for, g, flash, get_flashed_messages
+from flask import Flask, send_from_directory, render_template, request, redirect, url_for, g, flash, get_flashed_messages
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField, SelectField, DecimalField
+from flask_wtf.file import FileAllowed, FileRequired
+from wtforms import FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
 from wtforms.validators import InputRequired, DataRequired, Length
+from werkzeug.utils import secure_filename
 import pdb
 import sqlite3
+import os
+import datetime
+from secrets import token_hex
+
+basedir = os.path.abspath(os.path.dirname(__file__))
 
 app=Flask(__name__)
 app.config['SECRET_KEY'] = 'secretkey'
+app.config['ALLOWED_IMAGE_EXTENSIONS'] = ['jpeg', 'jpg', 'png']
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['IMAGE_UPLOADS'] = os.path.join(basedir, 'uploads')
 
 class ItemForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired("Title is required!"), DataRequired("Title is required!"), Length(min=5, max=20, message="Input must be between 5 and 20 characters long.")])
     price = DecimalField("Price")
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
+    image = FileField("Image", validators=[FileRequired(), FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
     
 
 class NewItemForm(ItemForm):
@@ -184,13 +195,22 @@ def edit_item(item_id):
         form = EditItemForm()
 
         if form.validate_on_submit():
+
+            format = "%Y%m%dT%H%M%S"
+            now = datetime.datetime.utcnow().strftime(format)
+            random_string = token_hex(2)
+            filename = random_string + " " + now + " " + form.image.data.filename
+            filename = secure_filename(filename)
+            form.image.data.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
+
             c.execute("""UPDATE items SET
-            title = ?, description = ?, price = ?
+            title = ?, description = ?, price = ?, image= ?
             WHERE id = ?""",
                 (
                     form.title.data,
                     form.description.data,
                     float(form.price.data),
+                    filename,
                     item_id
                 )
             )
@@ -207,7 +227,9 @@ def edit_item(item_id):
 
     return redirect(url_for('home'))
 
-
+@app.route('/uploads/<filename>')
+def uploads(filename):
+    return send_from_directory(app.config['IMAGE_UPLOADS'], filename)
 
 @app.route('/item/new', methods=['GET', 'POST'])
 def new_item():
@@ -231,6 +253,14 @@ def new_item():
 
 
     if form.validate_on_submit():
+
+        format = "%Y%m%dT%H%M%S"
+        now = datetime.datetime.utcnow().strftime(format)
+        random_string = token_hex(2)
+        filename = random_string + " " + now + " " + form.image.data.filename
+        filename = secure_filename(filename)
+        form.image.data.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
+
         c.execute("""INSERT INTO items
                     (title, description, price, image, category_id, subcategory_id)
                     VALUES(?,?,?,?,?,?)""",
@@ -238,7 +268,7 @@ def new_item():
                         form.title.data,
                         form.description.data,
                         float(form.price.data),
-                        "",
+                        filename,
                         form.category.data,
                         form.subcategory.data
                     )
