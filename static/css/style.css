@@ -21,3 +21,7 @@ a:hover {
 textarea {
     resize: none;
 }
+
+.delete-form {
+    display: inline;
+}
