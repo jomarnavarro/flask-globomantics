@@ -25,18 +25,72 @@ class EditItemForm(ItemForm):
 class DeleteItemForm(FlaskForm):
     submit = SubmitField('Delete Item')
 
+class FilterForm(FlaskForm):
+    title = StringField("Title", validators=[Length(max=20)])
+    price = SelectField("Price", coerce=int, choices=[(0, "---"), (1, "Max to Min"), (2, "Min to Max")])
+    category = SelectField("Category", coerce=int)
+    subcategory = SelectField("Subcategory", coerce=int)
+    submit = SubmitField("Filter")
+
+
 @app.route('/')
 def home():
     conn = get_db()
     c = conn.cursor()
-    items_from_db = c.execute("""SELECT
+    form = FilterForm(request.args, meta={"csrf": False})
+
+    c.execute("SELECT id, name FROM categories")
+    categories = c.fetchall()
+    categories.insert(0, (0, "---"))
+    form.category.choices = categories
+
+    c.execute("SELECT id, name FROm subcategories WHERE category_id = ?", (1,))
+    subcategories = c.fetchall()
+    subcategories.insert(0, (0, "---"))
+    form.subcategory.choices = subcategories
+    query = """SELECT
                     i.id, i.title, i.description, i.price, i.image, c.name, s.name
                     FROM
                     items as i
                     INNER JOIN categories AS c ON i.category_id = c.id
                     INNER JOIN subcategories AS s ON i.subcategory_id = s.id
-                    ORDER BY i.id DESC
-    """)
+    """
+    if form.validate():
+        #add filters to query
+        filter_queries = []
+        parameters = []
+
+        if form.title.data.strip():
+            filter_queries.append("i.title LIKE ?")
+            parameters.append("%" + form.title.data + "%")
+
+        if form.category.data:
+            filter_queries.append("i.category_id = ?")
+            parameters.append(form.category.data)
+
+        if form.subcategory.data:
+            filter_queries.append("i.subcategory_id = ?")
+            parameters.append(form.subcategory.data)
+
+        if filter_queries:
+            query += " WHERE "
+            query += " AND ".join(filter_queries)
+
+        if form.price.data:
+            if form.price.data == 1:
+                query += " ORDER BY i.price DESC"
+            else:
+                query += " ORDER BY i.price"
+        else:
+            query += " ORDER BY i.id DESC"
+        items_from_db = c.execute(query, tuple(parameters))
+        print(query)
+    else:
+        # do regular query
+        items_from_db = c.execute(query + "ORDER BY i.id DESC")
+
+
+    
     items = []
     for row in items_from_db:
         item = {
@@ -49,7 +103,7 @@ def home():
             "subcategory": row[6]
         }
         items.append(item)
-    return render_template('home.html', items=items)
+    return render_template('home.html', items=items, form=form)
 
 @app.route('/item/<int:item_id>')
 def item(item_id):
