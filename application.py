@@ -1,9 +1,11 @@
-from flask import Flask, send_from_directory, render_template, request, redirect, url_for, g, flash, get_flashed_messages
+from flask import Flask, jsonify, send_from_directory, render_template, request, redirect, url_for, g, flash, get_flashed_messages
 from flask_wtf import FlaskForm, RecaptchaField
 from flask_wtf.file import FileAllowed, FileRequired
-from wtforms import FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
+from wtforms import HiddenField, FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
 from wtforms.validators import InputRequired, DataRequired, Length, ValidationError
+from wtforms.widgets import Input
 from werkzeug.utils import secure_filename, escape, unescape
+from markupsafe import Markup
 import pdb
 import sqlite3
 import os
@@ -17,12 +19,36 @@ app.config['SECRET_KEY'] = 'secretkey'
 app.config['ALLOWED_IMAGE_EXTENSIONS'] = ['jpeg', 'jpg', 'png']
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['IMAGE_UPLOADS'] = os.path.join(basedir, 'uploads')
+app.config['TESTING'] = True
 app.config['RECAPTCHA_PUBLIC_KEY'] = os.getenv('RECAPTCHA_PUBLIC_KEY')
 app.config['RECAPTCHA_PRIVATE_KEY'] = os.getenv('RECAPTCHA_PRIVATE_KEY')
 
+
+class PriceInput(Input):
+    input_type = "number"
+
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault("id", field.id)
+        kwargs.setdefault("type", self.input_type)
+        kwargs.setdefault("step", "0.01")
+        if "value" not in kwargs:
+            kwargs['value'] = field._value()
+        if 'required' not in kwargs and 'required' in getattr(field, "flags", []):
+            kwargs['required'] = True
+        return Markup("""<div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">$</span>
+                            </div>
+                            <input %s>
+                        </div>
+        """ % self.html_params(name=field.name, **kwargs))
+
+class PriceField(DecimalField):
+    widget=PriceInput()
+
 class ItemForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired("Title is required!"), DataRequired("Title is required!"), Length(min=5, max=20, message="Input must be between 5 and 20 characters long.")])
-    price = DecimalField("Price")
+    price = PriceField("Price")
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
     image = FileField("Image", validators=[FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
     recaptcha = RecaptchaField()
@@ -53,8 +79,6 @@ class BelongsToOtherFieldOption:
     def __call__(self, form, field):
         c = get_db().cursor()
         try:
-            print(f"form.category.data {form.category.data}")
-            print(f"field.data {field.data}")
             c.execute("""SELECT COUNT(*) FROM {}
                         WHERE id = ? and {} = ?""".format(
                             self.table, 
@@ -67,7 +91,6 @@ class BelongsToOtherFieldOption:
             Passed Parameters are not correct. {}
             """.format(e))
         exists = c.fetchone()[0]
-        print(exists)
         if not exists:
             raise ValidationError(self.message)
 
@@ -105,6 +128,22 @@ class FilterForm(FlaskForm):
     subcategory = SelectField("Subcategory", coerce=int)
     submit = SubmitField("Filter")
 
+class NewCommentForm(FlaskForm):
+    content = TextAreaField("Comment", validators=[InputRequired("Input is required."), DataRequired("Data is required")])
+    item_id = HiddenField(validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+@app.route('/category/<int:category_id>')
+def category(category_id):
+    c = get_db().cursor()
+    c.execute("""SELECT id, name FROM subcategories
+                WHERE category_id = ?""",
+                (category_id,)
+    )
+
+    subcategories = c.fetchall()
+
+    return jsonify(subcategories=subcategories)
 
 @app.route('/')
 def home():
@@ -117,7 +156,7 @@ def home():
     categories.insert(0, (0, "---"))
     form.category.choices = categories
 
-    c.execute("SELECT id, name FROm subcategories WHERE category_id = ?", (1,))
+    c.execute("SELECT id, name FROm subcategories")
     subcategories = c.fetchall()
     subcategories.insert(0, (0, "---"))
     form.subcategory.choices = subcategories
@@ -157,7 +196,7 @@ def home():
         else:
             query += " ORDER BY i.id DESC"
         items_from_db = c.execute(query, tuple(parameters))
-        print(query)
+        
     else:
         # do regular query
         items_from_db = c.execute(query + "ORDER BY i.id DESC")
@@ -204,10 +243,43 @@ def item(item_id):
         item = {}
 
     if item:
+        comments_from_db = c.execute("""SELECT content FROM comments
+                                        WHERE item_id=? ORDER BY id DESC""",
+                                        (item_id,)
+        )
+        comments = []
+        for row in comments_from_db:
+            comment = {
+                "comment": row[0]
+            }
+            comments.append(comment)
+        
+        commentForm = NewCommentForm()
+        commentForm.item_id.data = item_id
+
         deleteItemForm = DeleteItemForm()
-        return render_template('item.html', item=item, deleteItemForm=deleteItemForm)
+        return render_template('item.html', item=item, comments=comments, commentForm=commentForm, deleteItemForm=deleteItemForm)
     else:
         return redirect(url_for('home'))
+
+@app.route('/comment/new', methods=['POST'])
+def new_comment():
+    conn = get_db()
+    c = conn.cursor()
+
+    form = NewCommentForm()
+
+    if form.validate_on_submit():
+        c.execute("""INSERT INTO comments (content, item_id)
+                    VALUES (?, ?)""",
+                    (
+                        escape(form.content.data),
+                        form.item_id.data
+                    )            
+        )
+        conn.commit()
+
+    return redirect(url_for('item', item_id=form.item_id.data))
 
 @app.route('/item/<int:item_id>/delete', methods=["POST"])
 def delete_item(item_id):
@@ -240,7 +312,6 @@ def edit_item(item_id):
     c = conn.cursor()
     item_from_db = c.execute("SELECT * FROM items WHERE id=?", (item_id,))
     row = c.fetchone()
-    print(item_from_db)
     try:
         item = {
             "id": row[0],
@@ -249,7 +320,6 @@ def edit_item(item_id):
             "price": row[3],
             "image": row[4]
         }
-        print(item)
     except:
         item = {}
 
@@ -299,10 +369,7 @@ def new_item():
     # [(1, 'Food'), (2, 'Technology)]
     categories = c.fetchall()
 
-    c.execute("""SELECT id, name from subcategories
-                    WHERE category_id = ?""",
-                    (1,)
-    )
+    c.execute("SELECT id, name from subcategories")
     subcategories = c.fetchall()
     form.subcategory.choices = subcategories
 
