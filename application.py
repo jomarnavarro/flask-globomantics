@@ -22,7 +22,7 @@ class ItemForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired("Title is required!"), DataRequired("Title is required!"), Length(min=5, max=20, message="Input must be between 5 and 20 characters long.")])
     price = DecimalField("Price")
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
-    image = FileField("Image", validators=[FileRequired(), FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
+    image = FileField("Image", validators=[FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
     
 
 class NewItemForm(ItemForm):
@@ -193,16 +193,11 @@ def edit_item(item_id):
 
     if item:
         form = EditItemForm()
-
+        
         if form.validate_on_submit():
-
-            format = "%Y%m%dT%H%M%S"
-            now = datetime.datetime.utcnow().strftime(format)
-            random_string = token_hex(2)
-            filename = random_string + " " + now + " " + form.image.data.filename
-            filename = secure_filename(filename)
-            form.image.data.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
-
+            filename = item['image']
+            if form.image.data:
+                filename = save_image_upload(form.image)
             c.execute("""UPDATE items SET
             title = ?, description = ?, price = ?, image= ?
             WHERE id = ?""",
@@ -252,14 +247,9 @@ def new_item():
     form.category.choices = categories
 
 
-    if form.validate_on_submit():
+    if form.validate_on_submit() and form.image.validate(form, extra_validators=(FileRequired,)):
 
-        format = "%Y%m%dT%H%M%S"
-        now = datetime.datetime.utcnow().strftime(format)
-        random_string = token_hex(2)
-        filename = random_string + " " + now + " " + form.image.data.filename
-        filename = secure_filename(filename)
-        form.image.data.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
+        filename = save_image_upload(form.image)
 
         c.execute("""INSERT INTO items
                     (title, description, price, image, category_id, subcategory_id)
@@ -279,6 +269,15 @@ def new_item():
     if form.errors:
         flash("{}".format(form.errors), 'danger')
     return render_template('new_item.html', form=form)
+
+def save_image_upload(image):
+    format = "%Y%m%dT%H%M%S"
+    now = datetime.datetime.utcnow().strftime(format)
+    random_string = token_hex(2)
+    filename = random_string + " " + now + " " + image.data.filename
+    filename = secure_filename(filename)
+    image.data.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
+    return filename
 
 def get_db():
     db = getattr(g, '_database', None)
