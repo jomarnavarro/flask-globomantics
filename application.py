@@ -2,7 +2,7 @@ from flask import Flask, send_from_directory, render_template, request, redirect
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
 from wtforms import FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
-from wtforms.validators import InputRequired, DataRequired, Length
+from wtforms.validators import InputRequired, DataRequired, Length, ValidationError
 from werkzeug.utils import secure_filename
 import pdb
 import sqlite3
@@ -24,10 +24,24 @@ class ItemForm(FlaskForm):
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
     image = FileField("Image", validators=[FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
     
+def belongs_to_category(message):
+    message = message
+
+    def _belongs_to_category(form, field):
+        c = get_db().cursor()
+        c.execute("""SELECT COUNT(*) FROM subcategories
+                    WHERE id = ? AND category_id = ?""",
+                    (field.data, form.category.data)
+        )
+        exists = c.fetchone()[0]
+        if not exists:
+            raise ValidationError(message)  
+    
+    return _belongs_to_category
 
 class NewItemForm(ItemForm):
     category = SelectField("Category", coerce=int)
-    subcategory = SelectField("Subcategory", coerce=int)
+    subcategory = SelectField("Subcategory", coerce=int, validators=[belongs_to_category("Choice does not belong to that category.")])
     submit = SubmitField("Submit")
 
 class EditItemForm(ItemForm):
