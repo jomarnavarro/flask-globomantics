@@ -3,7 +3,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
 from wtforms import FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
 from wtforms.validators import InputRequired, DataRequired, Length, ValidationError
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, escape, unescape
 import pdb
 import sqlite3
 import os
@@ -132,7 +132,7 @@ def home():
 
         if form.title.data.strip():
             filter_queries.append("i.title LIKE ?")
-            parameters.append("%" + form.title.data + "%")
+            parameters.append("%" + escape(form.title.data) + "%")
 
         if form.category.data:
             filter_queries.append("i.category_id = ?")
@@ -261,8 +261,8 @@ def edit_item(item_id):
             title = ?, description = ?, price = ?, image= ?
             WHERE id = ?""",
                 (
-                    form.title.data,
-                    form.description.data,
+                    escape(form.title.data),
+                    escape(form.description.data),
                     float(form.price.data),
                     filename,
                     item_id
@@ -273,7 +273,7 @@ def edit_item(item_id):
             return redirect(url_for('item', item_id=item_id))
 
         form.title.data = item['title']
-        form.description.data = item['description']
+        form.description.data = unescape(item['description'])
         form.price.data = item['price']
         if form.errors:
             flash("{}".format(form.errors), "danger")
@@ -314,8 +314,8 @@ def new_item():
                     (title, description, price, image, category_id, subcategory_id)
                     VALUES(?,?,?,?,?,?)""",
                     (
-                        form.title.data,
-                        form.description.data,
+                        escape(form.title.data),
+                        escape(form.description.data),
                         float(form.price.data),
                         filename,
                         form.category.data,
