@@ -1,0 +1,10 @@
+version: "3"
+services:
+    globomantics:
+        image: globomantics
+        container_name: globo
+        ports:
+            - "5000:5000"
+        environment:
+            - FLASK_APP=application.py
+            - FLASK_DEBUG=1
