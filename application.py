@@ -24,11 +24,56 @@ class ItemForm(FlaskForm):
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
     image = FileField("Image", validators=[FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
     
+class BelongsToOtherFieldOption:
+    def __init__(self, table, belongs_to, foreign_key=None, message=None):
+        if not table:
+            raise AttributeError("""
+            BelongsToOtherFieldOption validator needs the table parameter
+            """)
+        if not belongs_to:
+            raise AttributeError("""
+            BelongsToOtherFieldOption validator needs the belong_to parameter
+            """)
+
+        self.table = table
+        self.belongs_to = belongs_to
+
+        if not foreign_key:
+            foreign_key = belongs_to + "_id"
+        
+        if not message:
+            message = "Option invalid."
+        
+        self.foreign_key = foreign_key
+        self.message = message
+
+    def __call__(self, form, field):
+        c = get_db().cursor()
+        try:
+            print(f"form.category.data {form.category.data}")
+            print(f"field.data {field.data}")
+            c.execute("""SELECT COUNT(*) FROM {}
+                        WHERE id = ? and {} = ?""".format(
+                            self.table, 
+                            self.foreign_key
+                        ),
+                        (field.data, getattr(form, self.belongs_to).data)
+            )
+        except Exception as e:
+            raise AttributeError("""
+            Passed Parameters are not correct. {}
+            """.format(e))
+        exists = c.fetchone()[0]
+        print(exists)
+        if not exists:
+            raise ValidationError(self.message)
+
 def belongs_to_category(message):
     message = message
 
     def _belongs_to_category(form, field):
         c = get_db().cursor()
+        
         c.execute("""SELECT COUNT(*) FROM subcategories
                     WHERE id = ? AND category_id = ?""",
                     (field.data, form.category.data)
@@ -41,7 +86,7 @@ def belongs_to_category(message):
 
 class NewItemForm(ItemForm):
     category = SelectField("Category", coerce=int)
-    subcategory = SelectField("Subcategory", coerce=int, validators=[belongs_to_category("Choice does not belong to that category.")])
+    subcategory = SelectField("Subcategory", coerce=int, validators=[BelongsToOtherFieldOption(table="subcategories", belongs_to="category", message="Choice does not belong to that category.")])
     submit = SubmitField("Submit")
 
 class EditItemForm(ItemForm):
@@ -261,7 +306,7 @@ def new_item():
     form.category.choices = categories
 
 
-    if form.validate_on_submit() and form.image.validate(form, extra_validators=(FileRequired,)):
+    if form.validate_on_submit() and form.image.validate(form, extra_validators=(FileRequired(),)):
 
         filename = save_image_upload(form.image)
 
