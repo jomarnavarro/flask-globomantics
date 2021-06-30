@@ -1,5 +1,5 @@
 from flask import Flask, send_from_directory, render_template, request, redirect, url_for, g, flash, get_flashed_messages
-from flask_wtf import FlaskForm
+from flask_wtf import FlaskForm, RecaptchaField
 from flask_wtf.file import FileAllowed, FileRequired
 from wtforms import FileField, StringField, TextAreaField, SubmitField, SelectField, DecimalField
 from wtforms.validators import InputRequired, DataRequired, Length, ValidationError
@@ -17,12 +17,15 @@ app.config['SECRET_KEY'] = 'secretkey'
 app.config['ALLOWED_IMAGE_EXTENSIONS'] = ['jpeg', 'jpg', 'png']
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['IMAGE_UPLOADS'] = os.path.join(basedir, 'uploads')
+app.config['RECAPTCHA_PUBLIC_KEY'] = os.getenv('RECAPTCHA_PUBLIC_KEY')
+app.config['RECAPTCHA_PRIVATE_KEY'] = os.getenv('RECAPTCHA_PRIVATE_KEY')
 
 class ItemForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired("Title is required!"), DataRequired("Title is required!"), Length(min=5, max=20, message="Input must be between 5 and 20 characters long.")])
     price = DecimalField("Price")
     description = TextAreaField("Description", validators=[InputRequired("Description is required"), DataRequired("Desc is required"), Length(min=10, max=100, message="Input must be between 10 and 100 characters long")])
     image = FileField("Image", validators=[FileAllowed(app.config['ALLOWED_IMAGE_EXTENSIONS'], 'Images Only!')])
+    recaptcha = RecaptchaField()
     
 class BelongsToOtherFieldOption:
     def __init__(self, table, belongs_to, foreign_key=None, message=None):
