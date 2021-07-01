@@ -7,7 +7,7 @@
 <div class="row">
     <div class="col-lg-3">
         <div class="my-4">
-            <form action="{{ url_for('home') }}" method="GET">
+            <form class="filter-form" action="{{ url_for('home') }}" method="GET">
                 <div class="form-group">
                     {{ form.title.label }}
                     {{ form.title(class="form-control") }}
@@ -66,4 +66,5 @@
 
 {% block javascript %}
 <script src="{{ url_for('static', filename='js/subcategory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filter.js') }}"></script>
 {% endblock %}
