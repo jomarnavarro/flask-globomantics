@@ -1,0 +1,113 @@
+{
+    "encabezado": {
+        "nombre_completo": {
+            "nombres": "Jesus Omar",
+            "apellido_paterno": "Navarro",
+            "apellido_materno": "Balderas"
+        },
+        "puesto": "Test Automation Specialist"
+    },
+    "resumen_profesional": "Test Automation Specialist with over 16 years of experience, I work with companies to improve their QA process by jump starting it with Test Automation. My Test Automation Strategy consists primarily in integrating project Stakeholders in the Process, balancing the number of API/Backend tests with UI tests, and collaborating with DevOps to quickly integrate Test Artifacts into the CI/CI pipeline.",
+    "skills": [
+        "Java",
+        "TestNg",
+        "JavaScript"
+    ],
+    "experiencia_profesional": [
+        {
+            "Compañia": "Hitss",
+            "Lugar": "CDMX-Mexico",
+            "Rol": "Automation",
+            "Fecha_inicio": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Fecha_salida": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Description": "blabalbablabla"
+
+        },
+        {
+            "Compañia": "Neoris",
+            "Lugar": "Monterrey-Mexico",
+            "Rol": "Automation",
+            "Fecha_inicio": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Fecha_salida": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Description": "blabalbablabla"
+        }
+    ],   
+
+    "historial_academico":  [
+        {
+            "Institucion": "Hitss",
+            "Lugar": "CDMX-Mexico",
+            "Nivel_academico": "Licenciatura",
+            "Especialidad": "Tics",
+            "Fecha_inicio": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Fecha_salida": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            }
+        },
+        {
+            "Institucion": "Hitss",
+            "Lugar": "CDMX-Mexico",
+            "Nivel_academico": "Diplomado",
+            "Especialidad": "Performance",
+            "Fecha_inicio": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            },
+            "Fecha_salida": {
+                "day": 30,
+                "month": 10,
+                "year": 2021
+            }
+        }
+    ],
+    "idiomas": [
+        "Ingles",
+        "Frances",
+        "Aleman",
+        "Ruso",
+        "Espanol"
+    ],
+    "links": [
+        "https://github.com/jomarnavarro",
+        "https://linkedin.com/in/omar-navarro-set"
+    ],
+    "datos_personales": {
+        "curp": "blablabla",
+        "email": "blublublu",
+        "telefonos" : [
+            {
+                "type": "celular",
+                "numero": "8118181818181"
+            },
+            {
+                "type": "oficina",
+                "numero": "811818818181"
+            }
+        ]
+
+    }
+
+}

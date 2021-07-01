@@ -33,15 +33,16 @@
                 Product Reviews
             </div>
             <div class="card-body">
-                <form action="{{ url_for('new_comment') }}" method="post">
+                <form class="comment-form" action="{{ url_for('new_comment') }}" method="post">
                     {{ commentForm.hidden_tag() }}
                     <div class="form-group">
                         {{ commentForm.content.label }}
                         {{ commentForm.content(class="form-control", rows=3) }}
                     </div>
                     {{ commentForm.submit(class="btn btn-primary") }}
+                    <span class="comment-error"></span>
                 </form>
-                <hr>
+                <hr class="form-border">
                 {%if comments %}
                     {% for comment in comments %}
                     <p>{{ comment.comment }}</p>
@@ -55,4 +56,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block javascript %}
+    <script src="{{ url_for('static', filename='js/comment.js') }}"></script>
 {% endblock %}
