@@ -222,7 +222,7 @@ def home():
             "subcategory": row[6]
         }
         items.append(item)
-        
+
     if is_ajax:
         return render_template("_items.html", items=items)
     return render_template('home.html', items=items, form=form)
@@ -319,7 +319,7 @@ def delete_item(item_id):
     if item:
         c.execute("DELETE FROM items WHERE id=?", (item_id,))
         conn.commit()
-        flash("Item {} has been succesfully deleted.".format(item['title']))
+        flash("Item {} has been succesfully deleted.".format(item['title']), 'success')
     else:
         flash('This item does not exist', 'danger')
 
